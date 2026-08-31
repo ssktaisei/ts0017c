@@ -64,6 +64,8 @@ void Error_Handler(void);
 #define USB_OTG_FS_PWR_EN_GPIO_Port GPIOD
 #define USB_OTG_FS_OVCR_Pin GPIO_PIN_7
 #define USB_OTG_FS_OVCR_GPIO_Port GPIOG
+#define SELF_NRST_Pin GPIO_PIN_0
+#define SELF_NRST_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 
