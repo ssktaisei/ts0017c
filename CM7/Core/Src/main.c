@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "st7789.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +76,7 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_I2C1_Init(void);
@@ -132,6 +133,9 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+
+  /* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
 #if defined(DUAL_CORE_BOOT_SYNC_SEQUENCE)
 /* When system initialization is finished, Cortex-M7 will release Cortex-M4 by means of
@@ -174,6 +178,59 @@ Error_Handler();
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, pin);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, pin);
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, pin);
+
+
+
+
+  /*
+   * LCD initialization
+   */
+  ST7789_Init();
+
+  /*
+   * Red
+   */
+  ST7789_FillScreen(ST7789_RED);
+  HAL_Delay(1000);
+
+  /*
+   * Green
+   */
+  ST7789_FillScreen(ST7789_GREEN);
+  HAL_Delay(1000);
+
+  /*
+   * Blue
+   */
+  ST7789_FillScreen(ST7789_BLUE);
+  HAL_Delay(1000);
+
+  /*
+   * Black
+   */
+  ST7789_FillScreen(ST7789_BLACK);
+
+  /*
+   * Draw some rectangles
+   */
+  ST7789_FillRect(
+      10, 10,
+      100, 50,
+      ST7789_RED
+  );
+
+  ST7789_FillRect(
+      110, 70,
+      100, 50,
+      ST7789_GREEN
+  );
+
+  ST7789_FillRect(
+      50, 140,
+      220, 50,
+      ST7789_BLUE
+  );
+
 
   /* USER CODE END 2 */
 
@@ -267,6 +324,34 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+  /** Initializes the peripherals clock
+  */
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_QSPI|RCC_PERIPHCLK_SPI3
+                              |RCC_PERIPHCLK_SPI1;
+  PeriphClkInitStruct.PLL2.PLL2M = 5;
+  PeriphClkInitStruct.PLL2.PLL2N = 32;
+  PeriphClkInitStruct.PLL2.PLL2P = 1;
+  PeriphClkInitStruct.PLL2.PLL2Q = 2;
+  PeriphClkInitStruct.PLL2.PLL2R = 3;
+  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
+  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOMEDIUM;
+  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_PLL2;
+  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -512,7 +597,7 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
@@ -653,8 +738,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7|GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, USB_OTG_FS_PWR_EN_Pin|GPIO_PIN_14|GPIO_PIN_2|GPIO_PIN_4
-                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, USB_OTG_FS_PWR_EN_Pin|GPIO_PIN_2|LCD_DC_Pin|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, LCD_NCS_Pin|LCD_NRST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11
@@ -695,11 +783,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USB_OTG_FS_PWR_EN_Pin PD14 PD2 PD4
-                           PD5 PD6 PD7 */
-  GPIO_InitStruct.Pin = USB_OTG_FS_PWR_EN_Pin|GPIO_PIN_14|GPIO_PIN_2|GPIO_PIN_4
-                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+  /*Configure GPIO pins : USB_OTG_FS_PWR_EN_Pin PD2 LCD_DC_Pin PD5
+                           PD6 PD7 */
+  GPIO_InitStruct.Pin = USB_OTG_FS_PWR_EN_Pin|GPIO_PIN_2|LCD_DC_Pin|GPIO_PIN_5
+                          |GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LCD_NCS_Pin LCD_NRST_Pin */
+  GPIO_InitStruct.Pin = LCD_NCS_Pin|LCD_NRST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
@@ -718,12 +813,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PD3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SELF_NRST_Pin */
   GPIO_InitStruct.Pin = SELF_NRST_Pin;

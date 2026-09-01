@@ -316,30 +316,11 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
 void HAL_QSPI_MspInit(QSPI_HandleTypeDef* hqspi)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
   if(hqspi->Instance==QUADSPI)
   {
     /* USER CODE BEGIN QUADSPI_MspInit 0 */
 
     /* USER CODE END QUADSPI_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_QSPI;
-    PeriphClkInitStruct.PLL2.PLL2M = 5;
-    PeriphClkInitStruct.PLL2.PLL2N = 40;
-    PeriphClkInitStruct.PLL2.PLL2P = 1;
-    PeriphClkInitStruct.PLL2.PLL2Q = 2;
-    PeriphClkInitStruct.PLL2.PLL2R = 3;
-    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
-    PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-    PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-    PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_PLL2;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
     /* Peripheral clock enable */
     __HAL_RCC_QSPI_CLK_ENABLE();
 
@@ -439,22 +420,11 @@ void HAL_QSPI_MspDeInit(QSPI_HandleTypeDef* hqspi)
 void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
   if(hspi->Instance==SPI1)
   {
     /* USER CODE BEGIN SPI1_MspInit 0 */
 
     /* USER CODE END SPI1_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI1;
-    PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
     /* Peripheral clock enable */
     __HAL_RCC_SPI1_CLK_ENABLE();
 
@@ -480,16 +450,6 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     /* USER CODE BEGIN SPI3_MspInit 0 */
 
     /* USER CODE END SPI3_MspInit 0 */
-
-  /** Initializes the peripherals clock
-  */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI3;
-    PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
     /* Peripheral clock enable */
     __HAL_RCC_SPI3_CLK_ENABLE();
 

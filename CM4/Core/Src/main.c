@@ -127,6 +127,34 @@ int main(void)
 }
 
 /**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+  /** Initializes the peripherals clock
+  */
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_QSPI|RCC_PERIPHCLK_SPI3
+                              |RCC_PERIPHCLK_SPI1;
+  PeriphClkInitStruct.PLL2.PLL2M = 5;
+  PeriphClkInitStruct.PLL2.PLL2N = 32;
+  PeriphClkInitStruct.PLL2.PLL2P = 1;
+  PeriphClkInitStruct.PLL2.PLL2Q = 2;
+  PeriphClkInitStruct.PLL2.PLL2R = 3;
+  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
+  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOMEDIUM;
+  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_PLL2;
+  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
