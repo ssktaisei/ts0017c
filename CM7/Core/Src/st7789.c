@@ -7,6 +7,20 @@
 
 #include "st7789.h"
 #include "main.h"
+#include "string.h"
+
+#define ST7789_LINE_BUFFER_SIZE    (ST7789_WIDTH * 2)
+
+/*
+ * DMAからアクセス可能なD2 SRAMへ配置する。
+ *
+ * linker script側で .RAM_D2 をD2 SRAMに割り当てる。
+ */
+__attribute__((section(".RAM_D2"), aligned(32)))
+static uint8_t st7789_line_buffer[ST7789_LINE_BUFFER_SIZE];
+
+static volatile uint8_t st7789_dma_done = 0;
+static volatile uint8_t st7789_dma_error = 0;
 
 extern SPI_HandleTypeDef hspi1;
 
@@ -292,6 +306,7 @@ void ST7789_FillRect(uint16_t x,
                      uint16_t h,
                      uint16_t color)
 {
+#if 0
     uint32_t pixels;
     uint32_t i;
 
@@ -339,6 +354,53 @@ void ST7789_FillRect(uint16_t x,
     }
 
     CS_HIGH();
+#else
+    static uint8_t line_buf[ST7789_WIDTH * 2];
+
+    if (x >= ST7789_WIDTH || y >= ST7789_HEIGHT)
+        return;
+
+    if (x + w > ST7789_WIDTH)
+        w = ST7789_WIDTH - x;
+
+    if (y + h > ST7789_HEIGHT)
+        h = ST7789_HEIGHT - y;
+
+    if (w == 0 || h == 0)
+        return;
+
+    /* 1ライン分のRGB565データを作る */
+    uint8_t hi = color >> 8;
+    uint8_t lo = color & 0xFF;
+
+    for (uint16_t i = 0; i < w; i++)
+    {
+        line_buf[i * 2 + 0] = hi;
+        line_buf[i * 2 + 1] = lo;
+    }
+
+    ST7789_SetAddressWindow(
+        x,
+        y,
+        x + w - 1,
+        y + h - 1
+    );
+
+    CS_LOW();
+    DC_DATA();
+
+    for (uint16_t row = 0; row < h; row++)
+    {
+        HAL_SPI_Transmit(
+            &hspi1,
+            line_buf,
+            w * 2,
+            HAL_MAX_DELAY
+        );
+    }
+
+    CS_HIGH();
+#endif
 }
 
 
@@ -367,4 +429,145 @@ uint16_t ST7789_Color565(uint8_t r,
     return ((r & 0xF8) << 8) |
            ((g & 0xFC) << 3) |
            ((b & 0xF8) >> 3);
+}
+
+static void ST7789_CleanDCache(void *addr, uint32_t size)
+{
+    uintptr_t start = (uintptr_t)addr;
+    uintptr_t end   = start + size;
+
+    start &= ~((uintptr_t)31);
+    end = (end + 31) & ~((uintptr_t)31);
+
+    SCB_CleanDCache_by_Addr(
+        (uint32_t *)start,
+        (int32_t)(end - start)
+    );
+}
+
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi->Instance == SPI1)
+    {
+        st7789_dma_done = 1;
+    }
+}
+
+
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi->Instance == SPI1)
+    {
+        st7789_dma_error = 1;
+        st7789_dma_done = 1;
+    }
+}
+
+static HAL_StatusTypeDef ST7789_TransmitDMA(
+    uint8_t *data,
+    uint16_t size)
+{
+    st7789_dma_done = 0;
+    st7789_dma_error = 0;
+
+    ST7789_CleanDCache(data, size);
+
+    HAL_StatusTypeDef status;
+
+    status = HAL_SPI_Transmit_DMA(
+        &hspi1,
+        data,
+        size
+    );
+
+    if (status != HAL_OK)
+    {
+        return status;
+    }
+
+    /*
+     * 今回は同期的なFillRectなので、
+     * DMA完了まで待つ。
+     */
+    while (!st7789_dma_done)
+    {
+        /*
+         * 必要ならここで他の処理をする。
+         */
+    }
+
+    if (st7789_dma_error)
+    {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+void ST7789_FillRectDMA(uint16_t x,
+                        uint16_t y,
+                        uint16_t w,
+                        uint16_t h,
+                        uint16_t color)
+{
+    if (x >= ST7789_WIDTH ||
+        y >= ST7789_HEIGHT)
+    {
+        return;
+    }
+
+    if (x + w > ST7789_WIDTH)
+    {
+        w = ST7789_WIDTH - x;
+    }
+
+    if (y + h > ST7789_HEIGHT)
+    {
+        h = ST7789_HEIGHT - y;
+    }
+
+    if (w == 0 || h == 0)
+    {
+        return;
+    }
+
+    /*
+     * 1ライン分のRGB565を作る
+     */
+    uint8_t hi = color >> 8;
+    uint8_t lo = color & 0xFF;
+
+    for (uint16_t i = 0; i < w; i++)
+    {
+        st7789_line_buffer[i * 2 + 0] = hi;
+        st7789_line_buffer[i * 2 + 1] = lo;
+    }
+
+    /*
+     * 描画範囲を設定
+     */
+    ST7789_SetAddressWindow(
+        x,
+        y,
+        x + w - 1,
+        y + h - 1
+    );
+
+    /*
+     * ここからLCDのRAMへ連続転送
+     */
+    CS_LOW();
+    DC_DATA();
+
+    for (uint16_t row = 0; row < h; row++)
+    {
+        if (ST7789_TransmitDMA(
+                st7789_line_buffer,
+                w * 2) != HAL_OK)
+        {
+            break;
+        }
+    }
+
+    CS_HIGH();
 }

@@ -50,4 +50,10 @@ uint16_t ST7789_Color565(uint8_t r,
                          uint8_t g,
                          uint8_t b);
 
+void ST7789_FillRectDMA(uint16_t x,
+                        uint16_t y,
+                        uint16_t w,
+                        uint16_t h,
+                        uint16_t color);
+
 #endif
